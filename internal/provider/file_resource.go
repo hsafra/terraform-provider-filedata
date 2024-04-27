@@ -152,7 +152,11 @@ func (r *File) Read(ctx context.Context, req resource.ReadRequest, resp *resourc
 }
 
 func (r *File) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var data FileModel
+	var plan, state, data FileModel
+
+	// Read Terraform plan data into the model
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 
 	// Read Terraform plan data into the model
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
@@ -161,13 +165,35 @@ func (r *File) Update(ctx context.Context, req resource.UpdateRequest, resp *res
 		return
 	}
 
-	// If applicable, this is a great opportunity to initialize any necessary
-	// provider client data and make a call using it.
-	// httpResp, err := r.client.Do(httpReq)
-	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update example, got error: %s", err))
-	//     return
-	// }
+	data.File_name = state.File_name
+
+	fullName := r.basePath + "/" + data.File_name.ValueString()
+
+	// find differences between plan and state and update the file
+	planLinecount := len(plan.Lines)
+	stateLinecount := len(state.Lines)
+
+	data.Lines = make([]types.String, 0)
+
+	for i := 0; i < planLinecount; i++ {
+		data.Lines = append(data.Lines, plan.Lines[i])
+		if i >= stateLinecount || plan.Lines[i] != state.Lines[i] {
+			tflog.Trace(ctx, "updating line number "+strconv.Itoa(i)+" to file "+fullName+" with value "+plan.Lines[i].ValueString())
+			err := api.WriteLine(fullName, i+1, plan.Lines[i].ValueString())
+			if err != nil {
+				resp.Diagnostics.AddError("Write Error", fmt.Sprintf("Unable to write line %d, got error: %s", i, err))
+				return
+			}
+		}
+	}
+
+	if planLinecount < stateLinecount {
+		err := api.TrimFile(fullName, planLinecount)
+		if err != nil {
+			resp.Diagnostics.AddError("Trim Error", fmt.Sprintf("Unable to trim file, got error: %s", err))
+			return
+		}
+	}
 
 	// Save updated data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
@@ -182,14 +208,14 @@ func (r *File) Delete(ctx context.Context, req resource.DeleteRequest, resp *res
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	fullName := r.basePath + "/" + data.File_name.ValueString()
 
-	// If applicable, this is a great opportunity to initialize any necessary
-	// provider client data and make a call using it.
-	// httpResp, err := r.client.Do(httpReq)
-	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete example, got error: %s", err))
-	//     return
-	// }
+	err := api.RemoveFile(fullName)
+
+	if err != nil {
+		resp.Diagnostics.AddError("Delete Error", fmt.Sprintf("Unable to delete file, got error: %s", err))
+		return
+	}
 }
 
 func (r *File) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

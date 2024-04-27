@@ -71,8 +71,14 @@ func WriteLine(filePath string, n int, text string) error {
 
 	lines[n-1] = text
 
-	file.Truncate(0)
-	file.Seek(0, 0)
+	err = file.Truncate(0)
+	if err != nil {
+		return fmt.Errorf("error while writing to the file: %v", err)
+	}
+	_, err = file.Seek(0, 0)
+	if err != nil {
+		return fmt.Errorf("error while writing to the file: %v", err)
+	}
 	writer := bufio.NewWriter(file)
 	for _, line := range lines {
 		_, err = writer.WriteString(line + "\n")
@@ -80,7 +86,10 @@ func WriteLine(filePath string, n int, text string) error {
 			return fmt.Errorf("error while writing to the file: %v", err)
 		}
 	}
-	writer.Flush()
+	err = writer.Flush()
+	if err != nil {
+		return fmt.Errorf("error while writing to the file: %v", err)
+	}
 
 	return nil
 }
@@ -106,4 +115,63 @@ func LineCount(filePath string) (int, error) {
 	}
 
 	return lines, nil
+}
+
+/*
+RemoveFile removes the file at the given path.
+*/
+func RemoveFile(filePath string) error {
+	err := os.Remove(filePath)
+	if err != nil {
+		return fmt.Errorf("unable to remove the file: %v", err)
+	}
+	return nil
+}
+
+/*
+TrimFile removes all lines after the n-th line from the file.
+*/
+func TrimFile(filePath string, n int) error {
+	file, err := os.OpenFile(filePath, os.O_RDWR, 0644)
+	if err != nil {
+		return fmt.Errorf("unable to open the file: %v", err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	lines := make([]string, 0)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+
+	if scanner.Err() != nil {
+		return fmt.Errorf("error while reading the file: %v", scanner.Err())
+	}
+
+	if n > len(lines) {
+		return fmt.Errorf("file doesn't contain %d lines", n)
+	}
+
+	lines = lines[:n]
+
+	err = file.Truncate(0)
+	if err != nil {
+		return fmt.Errorf("error while writing to the file: %v", err)
+	}
+	_, err = file.Seek(0, 0)
+	if err != nil {
+		return fmt.Errorf("error while writing to the file: %v", err)
+	}
+	writer := bufio.NewWriter(file)
+	for _, line := range lines {
+		_, err = writer.WriteString(line + "\n")
+		if err != nil {
+			return fmt.Errorf("error while writing to the file: %v", err)
+		}
+	}
+	err = writer.Flush()
+	if err != nil {
+		return fmt.Errorf("error while writing to the file: %v", err)
+	}
+	return nil
 }
