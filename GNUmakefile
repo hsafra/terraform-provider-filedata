@@ -2,7 +2,7 @@
 
 default: testacc
 
-FILEDATA_BASE_PATH ?= /tmp
+FILEDATA_BASE_PATH ?= .
 
 # Run acceptance tests
 .PHONY: testacc
