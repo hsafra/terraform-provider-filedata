@@ -11,47 +11,33 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-func TestAccExampleResource(t *testing.T) {
+func TestAccFile(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			// Create and Read testing
 			{
-				Config: testAccExampleResourceConfig("one"),
+				Config: testAccFileConfig("file1", "[\"one\",\"two\"]"),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("filedata_file.test", "configurable_attribute", "one"),
-					resource.TestCheckResourceAttr("filedata_file.test", "defaulted", "example value when not configured"),
-					resource.TestCheckResourceAttr("filedata_file.test", "id", "example-id"),
+					resource.TestCheckResourceAttr("filedata_file.file1", "file_name", "file1"),
 				),
-			},
-			// ImportState testing
-			{
-				ResourceName:      "filedata_file.test",
-				ImportState:       true,
-				ImportStateVerify: true,
-				// This is not normally necessary, but is here because this
-				// example code does not have an actual upstream service.
-				// Once the Read method is able to refresh information from
-				// the upstream service, this can be removed.
-				ImportStateVerifyIgnore: []string{"configurable_attribute", "defaulted"},
 			},
 			// Update and Read testing
 			{
-				Config: testAccExampleResourceConfig("two"),
+				Config: testAccFileConfig("file1", "[\"two\",\"three\"]"),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("filedata_file.test", "configurable_attribute", "two"),
+					resource.TestCheckResourceAttr("filedata_file.file1", "lines.0", "two"),
 				),
 			},
-			// Delete testing automatically occurs in TestCase
 		},
 	})
 }
 
-func testAccExampleResourceConfig(configurableAttribute string) string {
+func testAccFileConfig(fileName, lines string) string {
 	return fmt.Sprintf(`
-resource "filedata_file" "test" {
-  configurable_attribute = %[1]q
-}
-`, configurableAttribute)
+resource "filedata_file" "%[1]s" {
+  file_name  = "%[1]s"
+  lines = %[2]s
+}`, fileName, lines)
 }

@@ -1,4 +1,8 @@
+.EXPORT_ALL_VARIABLES:
+
 default: testacc
+
+FILEDATA_BASE_PATH ?= /tmp
 
 # Run acceptance tests
 .PHONY: testacc

@@ -36,8 +36,8 @@ func (p *FileDataProvider) Schema(ctx context.Context, req provider.SchemaReques
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"base_path": schema.StringAttribute{
-				MarkdownDescription: "Base path of the files to manage",
-				Required:            true,
+				MarkdownDescription: "Base path of the files to manage.  Defaults to the environment variable FILEDATA_BASE_PATH",
+				Optional:            true,
 			},
 		},
 	}
@@ -52,8 +52,10 @@ func (p *FileDataProvider) Configure(ctx context.Context, req provider.Configure
 		return
 	}
 
-	resp.DataSourceData = data.Base_path.ValueString()
-	resp.ResourceData = data.Base_path.ValueString()
+	effitiveBasePath := withEnvironmentOverrideString(data.Base_path.ValueString(), "FILEDATA_BASE_PATH")
+
+	resp.DataSourceData = effitiveBasePath
+	resp.ResourceData = effitiveBasePath
 }
 
 func (p *FileDataProvider) Resources(ctx context.Context) []func() resource.Resource {
