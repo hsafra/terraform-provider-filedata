@@ -15,6 +15,7 @@ import (
 ReadLine reads the n-th line from the file and returns it as a string.
 If the files doesn't contain n lines, it returns an empty string.
 If the files doesn't exist it returns an error.
+lines numbering starts from 1
 */
 func ReadLine(filePath string, n int) (string, error) {
 	file, err := os.Open(filePath)
@@ -43,9 +44,10 @@ func ReadLine(filePath string, n int) (string, error) {
 WriteLine writes the given string to the n-th line of the file.
 If the files doesn't contain n lines it appends empty lines till n-1 and then the string at line n
 Other lines are not modified.
+lines numbering starts from 1
 */
 func WriteLine(filePath string, n int, text string) error {
-	file, err := os.OpenFile(filePath, os.O_RDWR, 0644)
+	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return fmt.Errorf("unable to open the file: %v", err)
 	}
@@ -62,13 +64,12 @@ func WriteLine(filePath string, n int, text string) error {
 	}
 
 	if n > len(lines) {
-		for i := len(lines); i < n-1; i++ {
+		for i := len(lines); i < n; i++ {
 			lines = append(lines, "")
 		}
 	}
 
-	lines = append(lines[:n-1], text)
-	lines = append(lines, lines[n-1:]...)
+	lines[n-1] = text
 
 	file.Truncate(0)
 	file.Seek(0, 0)
@@ -82,4 +83,27 @@ func WriteLine(filePath string, n int, text string) error {
 	writer.Flush()
 
 	return nil
+}
+
+/*
+LineCount returns the number of lines in the file.
+*/
+func LineCount(filePath string) (int, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return 0, fmt.Errorf("unable to open the file: %v", err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	lines := 0
+	for scanner.Scan() {
+		lines++
+	}
+
+	if scanner.Err() != nil {
+		return 0, fmt.Errorf("error while reading the file: %v", scanner.Err())
+	}
+
+	return lines, nil
 }

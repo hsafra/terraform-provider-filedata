@@ -5,8 +5,6 @@ package provider
 
 import (
 	"context"
-	"net/http"
-
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/function"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -29,20 +27,20 @@ type FileDataProvider struct {
 
 // FileDataProviderModel describes the provider data model.
 type FileDataProviderModel struct {
-	Endpoint types.String `tfsdk:"endpoint"`
+	Base_path types.String `tfsdk:"base_path"`
 }
 
 func (p *FileDataProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
-	resp.TypeName = "FileData"
+	resp.TypeName = "filedata"
 	resp.Version = p.version
 }
 
 func (p *FileDataProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"endpoint": schema.StringAttribute{
-				MarkdownDescription: "Example provider attribute",
-				Optional:            true,
+			"base_path": schema.StringAttribute{
+				MarkdownDescription: "Base path of the files to manage",
+				Required:            true,
 			},
 		},
 	}
@@ -57,13 +55,8 @@ func (p *FileDataProvider) Configure(ctx context.Context, req provider.Configure
 		return
 	}
 
-	// Configuration values are now available.
-	// if data.Endpoint.IsNull() { /* ... */ }
-
-	// Example client configuration for data sources and resources
-	client := http.DefaultClient
-	resp.DataSourceData = client
-	resp.ResourceData = client
+	resp.DataSourceData = data.Base_path.ValueString()
+	resp.ResourceData = data.Base_path.ValueString()
 }
 
 func (p *FileDataProvider) Resources(ctx context.Context) []func() resource.Resource {

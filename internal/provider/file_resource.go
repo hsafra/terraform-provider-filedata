@@ -6,16 +6,17 @@ package provider
 import (
 	"context"
 	"fmt"
-	"net/http"
-
+	"github.com/hashicorp/terraform-plugin-framework-validators/listvalidator"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"regexp"
+	"strconv"
+	"terraform-provider-filedata/api"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces.
@@ -28,41 +29,41 @@ func NewFile() resource.Resource {
 
 // File defines the resource implementation.
 type File struct {
-	client *http.Client
+	basePath string
 }
 
 // FileModel describes the resource data model.
 type FileModel struct {
-	ConfigurableAttribute types.String `tfsdk:"configurable_attribute"`
-	Defaulted             types.String `tfsdk:"defaulted"`
-	Id                    types.String `tfsdk:"id"`
+	File_name types.String   `tfsdk:"file_name"`
+	Lines     []types.String `tfsdk:"lines"`
 }
 
 func (r *File) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_example"
+	resp.TypeName = req.ProviderTypeName + "_file"
 }
 
 func (r *File) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: "Example resource",
+		MarkdownDescription: "File data resource",
 
 		Attributes: map[string]schema.Attribute{
-			"configurable_attribute": schema.StringAttribute{
-				MarkdownDescription: "Example configurable attribute",
-				Optional:            true,
+			"file_name": schema.StringAttribute{
+				Description: "File name",
+				Required:    true,
+				Validators: []validator.String{
+					stringvalidator.RegexMatches(
+						regexp.MustCompile(`^[a-z0-9]+$`),
+						"must contain only lowercase alphanumeric characters",
+					),
+				},
 			},
-			"defaulted": schema.StringAttribute{
-				MarkdownDescription: "Example configurable attribute with default value",
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString("example value when not configured"),
-			},
-			"id": schema.StringAttribute{
-				Computed:            true,
-				MarkdownDescription: "Example identifier",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
+			"lines": schema.ListAttribute{
+				Description: "Roles that should be granted to the user",
+				Required:    true,
+				ElementType: types.StringType,
+				Validators: []validator.List{
+					listvalidator.SizeAtLeast(2),
 				},
 			},
 		},
@@ -75,18 +76,18 @@ func (r *File) Configure(ctx context.Context, req resource.ConfigureRequest, res
 		return
 	}
 
-	client, ok := req.ProviderData.(*http.Client)
+	basePath, ok := req.ProviderData.(string)
 
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *http.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+			fmt.Sprintf("Expected string, got: %T. Please report this issue to the provider developers.", req.ProviderData),
 		)
 
 		return
 	}
 
-	r.client = client
+	r.basePath = basePath
 }
 
 func (r *File) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -99,21 +100,19 @@ func (r *File) Create(ctx context.Context, req resource.CreateRequest, resp *res
 		return
 	}
 
-	// If applicable, this is a great opportunity to initialize any necessary
-	// provider client data and make a call using it.
-	// httpResp, err := r.client.Do(httpReq)
-	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create example, got error: %s", err))
-	//     return
-	// }
+	fullName := r.basePath + "/" + data.File_name.ValueString()
 
-	// For the purposes of this example code, hardcoding a response value to
-	// save into the Terraform state.
-	data.Id = types.StringValue("example-id")
+	// iterate over data.lines and write to file
+	for i := 0; i < len(data.Lines); i++ {
+		tflog.Trace(ctx, "writing line number "+strconv.Itoa(i)+" to file "+fullName+" with value "+data.Lines[i].ValueString())
+		err := api.WriteLine(fullName, i+1, data.Lines[i].ValueString())
+		if err != nil {
+			resp.Diagnostics.AddError("Write Error", fmt.Sprintf("Unable to write line %d, got error: %s", i, err))
+			return
+		}
+	}
 
-	// Write logs using the tflog package
-	// Documentation: https://terraform.io/plugin/log
-	tflog.Trace(ctx, "created a resource")
+	tflog.Trace(ctx, "file written successfully")
 
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
@@ -129,13 +128,24 @@ func (r *File) Read(ctx context.Context, req resource.ReadRequest, resp *resourc
 		return
 	}
 
-	// If applicable, this is a great opportunity to initialize any necessary
-	// provider client data and make a call using it.
-	// httpResp, err := r.client.Do(httpReq)
-	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read example, got error: %s", err))
-	//     return
-	// }
+	fullName := r.basePath + "/" + data.File_name.ValueString()
+
+	lineCount, err := api.LineCount(fullName)
+	if err != nil {
+		resp.Diagnostics.AddError("Read Error", fmt.Sprintf("Unable to read file, got error: %s", err))
+		return
+	}
+
+	data.Lines = make([]types.String, 0)
+	// read the lines from the file and return them
+	for i := 0; i < lineCount; i++ {
+		line, err := api.ReadLine(fullName, i+1)
+		if err != nil {
+			resp.Diagnostics.AddError("Read Error", fmt.Sprintf("Unable to read line %d, got error: %s", i, err))
+			return
+		}
+		data.Lines = append(data.Lines, types.StringValue(line))
+	}
 
 	// Save updated data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
