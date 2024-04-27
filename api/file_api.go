@@ -15,7 +15,7 @@ import (
 ReadLine reads the n-th line from the file and returns it as a string.
 If the files doesn't contain n lines, it returns an empty string.
 If the files doesn't exist it returns an error.
-lines numbering starts from 1
+lines numbering starts from 1.
 */
 func ReadLine(filePath string, n int) (string, error) {
 	file, err := os.Open(filePath)
@@ -44,7 +44,7 @@ func ReadLine(filePath string, n int) (string, error) {
 WriteLine writes the given string to the n-th line of the file.
 If the files doesn't contain n lines it appends empty lines till n-1 and then the string at line n
 Other lines are not modified.
-lines numbering starts from 1
+lines numbering starts from 1.
 */
 func WriteLine(filePath string, n int, text string) error {
 	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0644)
