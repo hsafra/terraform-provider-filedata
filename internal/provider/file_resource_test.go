@@ -1,6 +1,4 @@
-/*
-This file contains the acceptance tests for the filedata_file resource.
-*/
+// Copyright (c) Harel Safra
 
 package provider
 

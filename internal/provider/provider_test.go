@@ -1,3 +1,5 @@
+// Copyright (c) Harel Safra
+
 package provider
 
 import (

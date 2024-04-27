@@ -1,5 +1,4 @@
 // Copyright (c) Harel Safra
-// SPDX-License-Identifier: MPL-2.0
 
 package provider
 
