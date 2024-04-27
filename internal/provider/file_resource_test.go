@@ -34,6 +34,10 @@ func TestAccFile(t *testing.T) {
 
 func testAccFileConfig(fileName, lines string) string {
 	return fmt.Sprintf(`
+provider "filedata" {
+  base_path = "/tmp"
+}
+
 resource "filedata_file" "%[1]s" {
   file_name  = "%[1]s"
   lines = %[2]s
