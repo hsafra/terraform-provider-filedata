@@ -29,4 +29,4 @@ resource "filedata_file" "file1" {
 ### Required
 
 - `file_name` (String) File name
-- `lines` (List of String) Roles that should be granted to the user
+- `lines` (List of String) Lines to write to the file
