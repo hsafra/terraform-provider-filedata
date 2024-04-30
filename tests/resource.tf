@@ -3,7 +3,6 @@ resource "filedata_file" "file1" {
   lines = [
     "line1",
     "line2",
-    "line3",
   ]
 }
 

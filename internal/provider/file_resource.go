@@ -58,7 +58,7 @@ func (r *File) Schema(ctx context.Context, req resource.SchemaRequest, resp *res
 				},
 			},
 			"lines": schema.ListAttribute{
-				Description: "Roles that should be granted to the user",
+				Description: "Lines to write to the file",
 				Required:    true,
 				ElementType: types.StringType,
 				Validators: []validator.List{
