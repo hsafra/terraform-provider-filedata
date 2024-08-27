@@ -1,6 +1,5 @@
 /*
 This file has api functions for working with the data file structure we define.
-The file has two primitives: ReadLine and WriteLine
 */
 
 package api

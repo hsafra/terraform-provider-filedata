@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"regexp"
 	"strconv"
+	"strings"
 	"terraform-provider-filedata/api"
 )
 
@@ -131,7 +132,11 @@ func (r *File) Read(ctx context.Context, req resource.ReadRequest, resp *resourc
 
 	lineCount, err := api.LineCount(fullName)
 	if err != nil {
-		resp.Diagnostics.AddError("Read Error", fmt.Sprintf("Unable to read file, got error: %s", err))
+		if strings.HasSuffix(err.Error(), "no such file or directory") {
+			resp.State.RemoveResource(ctx)
+		} else {
+			resp.Diagnostics.AddError("Read Error", fmt.Sprintf("Unable to read file, got error: %s", err))
+		}
 		return
 	}
 
